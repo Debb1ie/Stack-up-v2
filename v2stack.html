@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stack Up — Build The AI-Powered World</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --red:   #e63946;
+  --blue:  #4cc9f0;
+  --green: #06d6a0;
+  --gold:  #f4a01c;
+  --teal:  #38b2ac;
+  --purple:#b57bee;
+  --dark:  #060d1a;
+  --dark2: #0a1428;
+  --cell:  44px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--dark);
+  color:#fff;
+  font-family:'Syne',sans-serif;
+  overflow-x:hidden;
+  cursor:none;
+}
+
+/* CURSOR */
+#cur{
+  position:fixed;width:16px;height:16px;
+  border-radius:3px;background:var(--blue);
+  pointer-events:none;z-index:9999;
+  mix-blend-mode:difference;
+  transform:translate(-50%,-50%);
+  transition:width .15s,height .15s,border-radius .15s;
+}
+
+/* GRID */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(76,201,240,0.055) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(76,201,240,0.055) 1px,transparent 1px);
+  background-size:var(--cell) var(--cell);
+  z-index:0;pointer-events:none;
+}
+
+/* TETRIS BG COLUMNS */
+#tbg{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;}
+.tc{position:absolute;bottom:0;display:flex;flex-direction:column-reverse;gap:3px;}
+.tb{
+  width:40px;height:40px;border-radius:5px;
+  opacity:0;
+  box-shadow:inset 0 3px 0 rgba(255,255,255,0.22),inset 0 -3px 0 rgba(0,0,0,0.3);
+  animation:tbrise linear forwards;
+}
+@keyframes tbrise{
+  0%  {opacity:0;transform:translateY(-30px);}
+  8%  {opacity:0.85;}
+  88% {opacity:0.85;}
+  100%{opacity:0.07;transform:translateY(0);}
+}
+
+/* NAV */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 48px;
+  background:rgba(6,13,26,0.88);
+  backdrop-filter:blur(18px);
+  border-bottom:2px solid rgba(76,201,240,0.1);
+}
+.nlogo{font-family:'Fredoka One',cursive;font-size:1.65rem;display:flex;align-items:center;}
+.nlogo span{display:inline-block;}
+.n0{color:var(--blue);}
+.n1{color:var(--red);}
+.n2{color:var(--gold);}
+.n3{color:var(--teal);}
+.n4{color:var(--blue);}
+.ndiv{color:rgba(255,255,255,0.18);margin:0 8px;font-size:1.1rem;}
+.n5{color:var(--red);}
+.n6{color:var(--green);}
+.nlinks{display:flex;gap:30px;list-style:none;}
+.nlinks a{color:rgba(255,255,255,0.5);text-decoration:none;font-weight:800;font-size:.78rem;letter-spacing:2px;text-transform:uppercase;transition:color .2s;}
+.nlinks a:hover{color:var(--blue);}
+.ncta{
+  background:linear-gradient(135deg,var(--red),#ff6b6b);
+  color:#fff!important;padding:10px 22px;border-radius:5px;
+  font-weight:800!important;
+  box-shadow:0 4px 18px rgba(230,57,70,.35);
+  transition:transform .2s,box-shadow .2s!important;
+}
+.ncta:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(230,57,70,.55)!important;}
+
+/* ===== HERO ===== */
+.hero{
+  position:relative;z-index:1;
+  min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:120px 24px 0;text-align:center;
+}
+
+/* TETRIS LETTER BLOCKS */
+.tword{display:flex;gap:5px;justify-content:center;margin-bottom:5px;}
+.tblock{
+  width:82px;height:82px;
+  border-radius:9px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Fredoka One',cursive;font-size:2.7rem;color:#fff;
+  position:relative;
+  box-shadow:
+    inset 0 5px 0 rgba(255,255,255,0.28),
+    inset 0 -5px 0 rgba(0,0,0,0.38),
+    inset 5px 0 0 rgba(255,255,255,0.13),
+    inset -5px 0 0 rgba(0,0,0,0.22),
+    0 8px 24px rgba(0,0,0,0.5);
+  animation:bdrop .65s cubic-bezier(.34,1.56,.64,1) both;
+}
+.tblock::after{
+  content:'';position:absolute;inset:7px;
+  border-radius:4px;border:1px solid rgba(255,255,255,0.1);
+  pointer-events:none;
+}
+/* sheen */
+.tblock::before{
+  content:'';position:absolute;inset:0;
+  border-radius:9px;
+  background:linear-gradient(135deg,rgba(255,255,255,0.12) 0%,transparent 55%);
+  pointer-events:none;
+}
+@keyframes bdrop{
+  0%{transform:translateY(-100px) rotate(-6deg);opacity:0;}
+  75%{transform:translateY(8px) rotate(1deg);}
+  100%{transform:translateY(0) rotate(0);opacity:1;}
+}
+.tblock-lg{width:112px;height:112px;font-size:3.8rem;border-radius:11px;}
+
+.b-S{background:#2878a8;animation-delay:.05s;}
+.b-T{background:#b82d25;animation-delay:.1s;}
+.b-A{background:#c88912;animation-delay:.15s;}
+.b-C{background:#147a62;animation-delay:.2s;}
+.b-K{background:#1f5e8a;animation-delay:.25s;}
+.b-U{background:#b82d25;animation-delay:.32s;}
+.b-P{background:#147a62;animation-delay:.38s;}
+
+.hero-tag{
+  margin-top:28px;
+  font-size:clamp(.8rem,1.8vw,.95rem);
+  font-weight:800;letter-spacing:3px;text-transform:uppercase;
+  color:rgba(255,255,255,.78);
+  animation:fup .8s .6s both;
+}
+.hero-tag2{
+  font-size:clamp(.8rem,1.8vw,.95rem);
+  font-weight:800;letter-spacing:3px;text-transform:uppercase;
+  color:var(--gold);margin-bottom:36px;
+  animation:fup .8s .7s both;
+}
+@keyframes fup{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}
+
+.hero-pills{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:36px;animation:fup .8s .8s both;}
+.pill{
+  display:flex;align-items:center;gap:7px;
+  background:rgba(76,201,240,.06);
+  border:1px solid rgba(76,201,240,.22);
+  border-radius:5px;padding:9px 16px;
+  font-size:.78rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;
+  text-decoration:none;color:#fff;transition:background .2s,border-color .2s;
+}
+.pill:hover{background:rgba(76,201,240,.14);border-color:var(--blue);}
+
+.hero-btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;animation:fup .8s .9s both;}
+.bp{
+  background:linear-gradient(135deg,var(--red),#ff6b6b);
+  color:#fff;padding:15px 36px;border-radius:6px;
+  font-family:'Fredoka One',cursive;font-size:1.05rem;letter-spacing:1px;
+  text-decoration:none;border:none;cursor:none;
+  box-shadow:0 6px 26px rgba(230,57,70,.38);
+  transition:transform .2s,box-shadow .2s;display:inline-block;
+}
+.bp:hover{transform:translateY(-3px);box-shadow:0 12px 38px rgba(230,57,70,.55);}
+.bs{
+  background:transparent;color:var(--blue);
+  padding:15px 36px;border-radius:6px;
+  font-family:'Fredoka One',cursive;font-size:1.05rem;letter-spacing:1px;
+  text-decoration:none;border:2px solid var(--blue);cursor:none;
+  transition:background .2s,transform .2s;display:inline-block;
+}
+.bs:hover{background:rgba(76,201,240,.1);transform:translateY(-3px);}
+
+/* TETRIS FLOOR */
+.tfloor{
+  width:100%;
+  position:relative;z-index:1;
+  margin-top:56px;
+  animation:fup 1s 1s both;
+}
+.trow{display:flex;justify-content:center;gap:3px;margin-bottom:3px;}
+.tfl{
+  height:40px;border-radius:5px;
+  box-shadow:inset 0 3px 0 rgba(255,255,255,0.2),inset 0 -3px 0 rgba(0,0,0,.3);
+  animation:bob ease-in-out infinite;
+}
+@keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+
+/* ===== SECTION SHARED ===== */
+.wrap{position:relative;z-index:1;padding:96px 24px;}
+.inner{max-width:1080px;margin:0 auto;}
+.slabel{font-size:.7rem;font-weight:800;letter-spacing:4px;text-transform:uppercase;color:var(--gold);margin-bottom:10px;}
+.stitle{font-family:'Fredoka One',cursive;font-size:clamp(2rem,4vw,3rem);line-height:1.1;margin-bottom:14px;}
+.stitle span{color:var(--blue);}
+.sdesc{font-size:.97rem;line-height:1.75;color:rgba(255,255,255,.52);max-width:560px;margin-bottom:52px;}
+
+/* REVEAL */
+.rv{opacity:0;transform:translateY(28px);transition:opacity .6s ease,transform .6s ease;}
+.rv.in{opacity:1;transform:translateY(0);}
+
+/* ===== ABOUT ===== */
+.about-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;}
+.about-text p{font-size:.98rem;line-height:1.8;color:rgba(255,255,255,.58);margin-bottom:14px;}
+.about-text p strong{color:var(--blue);}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.scard{
+  background:rgba(255,255,255,.03);
+  border:2px solid rgba(255,255,255,.06);
+  border-radius:10px;padding:22px 16px;text-align:center;
+  position:relative;overflow:hidden;
+  transition:transform .3s,border-color .3s;
+}
+.scard:hover{transform:translateY(-4px);border-color:rgba(76,201,240,.25);}
+.scard::after{content:'';position:absolute;top:0;left:0;right:0;height:4px;}
+.scard:nth-child(1)::after{background:var(--blue);}
+.scard:nth-child(2)::after{background:var(--gold);}
+.scard:nth-child(3)::after{background:var(--green);}
+.scard:nth-child(4)::after{background:var(--red);}
+.snum{font-family:'Fredoka One',cursive;font-size:2.6rem;line-height:1;}
+.scard:nth-child(1) .snum{color:var(--blue);}
+.scard:nth-child(2) .snum{color:var(--gold);}
+.scard:nth-child(3) .snum{color:var(--green);}
+.scard:nth-child(4) .snum{color:var(--red);}
+.slb{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,.4);margin-top:4px;}
+
+/* ===== SPEAKERS ===== */
+.spk-bg{background:rgba(0,0,0,.22);}
+.spk-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:14px;
+}
+
+/* First 3 cards top row */
+/* Cards 4 & 5 bottom row, centered */
+.spk-grid .sc:nth-child(4){grid-column:1 / 2;}
+.spk-grid .sc:nth-child(5){grid-column:3 / 4;}
+
+.sc{
+  background:rgba(255,255,255,.025);
+  border:2px solid rgba(255,255,255,.07);
+  border-radius:12px;
+  padding:28px 22px;
+  position:relative;overflow:hidden;
+  transition:transform .4s cubic-bezier(.34,1.56,.64,1),box-shadow .3s,border-color .3s;
+  cursor:none;
+}
+.sc:hover{
+  transform:translateY(-8px) scale(1.025);
+  box-shadow:0 24px 64px rgba(0,0,0,.5),0 0 0 2px currentColor;
+  border-color:currentColor;
+}
+/* accent corner */
+.sc::before{
+  content:'';position:absolute;top:0;left:0;
+  width:52px;height:52px;
+  background:currentColor;opacity:.13;
+  border-radius:0 0 12px 0;
+}
+/* sheen line */
+.sc::after{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:currentColor;opacity:.5;
+}
+.sc-ico{
+  position:absolute;top:13px;left:13px;
+  width:22px;height:22px;border-radius:4px;
+  background:currentColor;opacity:.75;
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.3),inset 0 -2px 0 rgba(0,0,0,.3);
+}
+.sc-av{
+  width:68px;height:68px;border-radius:9px;
+  background:rgba(255,255,255,.06);
+  border:2px solid currentColor;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Fredoka One',cursive;font-size:1.65rem;color:#fff;
+  margin:10px 0 14px;
+  box-shadow:0 4px 18px rgba(0,0,0,.35);
+}
+.sc-name{font-family:'Fredoka One',cursive;font-size:1.2rem;color:#fff;margin-bottom:2px;}
+.sc-role{font-size:.7rem;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:currentColor;opacity:.8;margin-bottom:14px;}
+.sc-topic{
+  font-size:.87rem;font-weight:700;color:rgba(255,255,255,.5);
+  line-height:1.55;padding-top:14px;
+  border-top:1px solid rgba(255,255,255,.06);
+}
+.sc-topic strong{color:rgba(255,255,255,.82);}
+
+.c1{color:var(--blue);}
+.c2{color:var(--red);}
+.c3{color:var(--gold);}
+.c4{color:var(--green);}
+.c5{color:var(--purple);}
+
+/* ===== SCHEDULE ===== */
+.sched-list{display:flex;flex-direction:column;gap:0;margin-top:52px;}
+.srow{
+  display:grid;grid-template-columns:96px 18px 1fr;
+  align-items:center;gap:18px;
+  padding:17px 0;
+  border-bottom:1px solid rgba(255,255,255,.05);
+  transition:background .2s;
+  border-radius:6px;
+  padding-left:8px;padding-right:8px;
+}
+.srow:hover{background:rgba(255,255,255,.03);}
+.stime{font-family:'Fredoka One',cursive;font-size:.92rem;color:rgba(255,255,255,.3);text-align:right;}
+.sdot{
+  width:18px;height:18px;border-radius:4px;flex-shrink:0;
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.25),inset 0 -2px 0 rgba(0,0,0,.3);
+}
+.sinfo{}
+.stit{font-weight:800;font-size:.97rem;margin-bottom:2px;}
+.sdet{font-size:.78rem;color:rgba(255,255,255,.38);font-weight:700;}
+
+/* ===== REGISTER ===== */
+.reg-bg{background:rgba(0,0,0,.18);}
+.reg-inner{max-width:660px;margin:0 auto;text-align:center;}
+.reg-blocks{display:flex;justify-content:center;gap:5px;margin-bottom:38px;}
+.rb{
+  border-radius:6px;
+  box-shadow:inset 0 4px 0 rgba(255,255,255,.2),inset 0 -4px 0 rgba(0,0,0,.3);
+  animation:bob ease-in-out infinite;
+}
+.rtitle{font-family:'Fredoka One',cursive;font-size:clamp(2.2rem,5vw,3.4rem);line-height:1.1;margin-bottom:10px;}
+.rdesc{color:rgba(255,255,255,.48);font-size:.97rem;margin-bottom:34px;line-height:1.7;}
+.rform{display:flex;flex-direction:column;gap:10px;max-width:420px;margin:0 auto;}
+.ri{
+  padding:13px 16px;
+  background:rgba(255,255,255,.04);
+  border:2px solid rgba(76,201,240,.14);
+  border-radius:7px;color:#fff;
+  font-family:'Syne',sans-serif;font-size:.93rem;font-weight:700;
+  outline:none;transition:border-color .2s;
+}
+.ri::placeholder{color:rgba(255,255,255,.22);}
+.ri:focus{border-color:var(--blue);}
+.rbtn{
+  padding:15px;
+  background:linear-gradient(135deg,var(--red),#ff6b6b);
+  color:#fff;border:none;border-radius:7px;
+  font-family:'Fredoka One',cursive;font-size:1.15rem;letter-spacing:1px;
+  cursor:none;transition:transform .2s,box-shadow .2s;
+  box-shadow:0 6px 22px rgba(230,57,70,.35);
+}
+.rbtn:hover{transform:translateY(-2px);box-shadow:0 12px 38px rgba(230,57,70,.52);}
+#rsuccess{display:none;margin-top:14px;color:var(--green);font-weight:800;font-size:.95rem;}
+
+/* ===== FOOTER ===== */
+footer{
+  position:relative;z-index:1;
+  padding:48px 24px;text-align:center;
+  border-top:2px solid rgba(76,201,240,.07);
+}
+.fblocks{display:flex;justify-content:center;gap:4px;margin-bottom:20px;}
+.fb{
+  width:26px;height:26px;border-radius:5px;
+  box-shadow:inset 0 3px 0 rgba(255,255,255,.2),inset 0 -3px 0 rgba(0,0,0,.3);
+}
+.flogo{font-family:'Fredoka One',cursive;font-size:1.4rem;display:flex;align-items:center;justify-content:center;margin-bottom:8px;}
+footer p{color:rgba(255,255,255,.28);font-size:.83rem;margin-bottom:3px;}
+footer a{color:var(--blue);text-decoration:none;}
+
+@media(max-width:900px){
+  nav{padding:14px 20px;}
+  .nlinks{display:none;}
+  .about-grid{grid-template-columns:1fr;}
+  .spk-grid{grid-template-columns:1fr 1fr;}
+  .spk-grid .sc:nth-child(4),.spk-grid .sc:nth-child(5){grid-column:auto;}
+  .tblock{width:58px;height:58px;font-size:1.9rem;}
+  .tblock-lg{width:80px;height:80px;font-size:2.8rem;}
+}
+@media(max-width:540px){
+  .spk-grid{grid-template-columns:1fr;}
+  .tblock{width:46px;height:46px;font-size:1.5rem;}
+  .tblock-lg{width:64px;height:64px;font-size:2.2rem;}
+}
+</style>
+</head>
+<body>
+
+<div id="cur"></div>
+<div id="tbg"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nlogo">
+    <span class="n0">S</span><span class="n1">T</span><span class="n2">A</span><span class="n3">C</span><span class="n4">K</span>
+    <span class="ndiv">|</span>
+    <span class="n5">U</span><span class="n6">P</span>
+  </div>
+  <ul class="nlinks">
+    <li><a href="#about">About</a></li>
+    <li><a href="#speakers">Speakers</a></li>
+    <li><a href="#schedule">Schedule</a></li>
+    <li><a href="#register" class="ncta">Register Free</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="home">
+
+  <div style="display:flex;flex-direction:column;align-items:center;gap:5px;margin-bottom:0;">
+    <!-- STACK -->
+    <div class="tword">
+      <div class="tblock b-S">S</div>
+      <div class="tblock b-T">T</div>
+      <div class="tblock b-A">A</div>
+      <div class="tblock b-C">C</div>
+      <div class="tblock b-K">K</div>
+    </div>
+    <!-- UP -->
+    <div class="tword">
+      <div class="tblock tblock-lg b-U">U</div>
+      <div class="tblock tblock-lg b-P">P</div>
+    </div>
+  </div>
+
+  <p class="hero-tag">Build the AI-Powered World</p>
+  <p class="hero-tag2">Before It Builds Without You.</p>
+
+  <div class="hero-pills">
+    <a href="https://instagram.com/stackupbuildai" target="_blank" class="pill">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none"/></svg>
+      @STACKUPBUILDAI
+    </a>
+    <a href="mailto:stackupbuildai@gmail.com" class="pill">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m2 7 10 7 10-7"/></svg>
+      STACKUPBUILDAI@GMAIL.COM
+    </a>
+  </div>
+
+  <div class="hero-btns">
+    <a href="#register" class="bp">Grab Your Seat 🎮</a>
+    <a href="#speakers" class="bs">Meet the Speakers</a>
+  </div>
+
+  <!-- TETRIS FLOOR BLOCKS -->
+  <div class="tfloor">
+    <div class="trow" id="floorR1"></div>
+    <div class="trow" id="floorR2"></div>
+    <div class="trow" id="floorR3"></div>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section class="wrap" id="about">
+  <div class="inner">
+    <div class="about-grid">
+      <div class="about-text rv">
+        <p class="slabel">What Is Stack Up</p>
+        <h2 class="stitle">An Event for <span>Builders</span></h2>
+        <p>Stack Up is a speaker event bringing together the sharpest AI minds to share what they're building, what they've learned, and where AI is truly heading.</p>
+        <p>Five powerful sessions. One room. <strong>Zero fluff.</strong> Whether you're a developer, founder, or just wildly curious — this is your event.</p>
+        <p>The AI-powered world is being built right now. The only question is: <strong>are you in the room?</strong></p>
+        <div style="margin-top:28px;display:flex;gap:10px;flex-wrap:wrap;">
+          <a href="#register" class="bp" style="text-decoration:none;">Register Free</a>
+          <a href="#speakers" class="bs" style="text-decoration:none;">See Speakers</a>
+        </div>
+      </div>
+      <div class="stat-grid rv">
+        <div class="scard"><div class="snum">5</div><div class="slb">Speakers</div></div>
+        <div class="scard"><div class="snum">1</div><div class="slb">Day</div></div>
+        <div class="scard"><div class="snum">Free</div><div class="slb">Entry</div></div>
+        <div class="scard"><div class="snum">∞</div><div class="slb">Ideas</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SPEAKERS -->
+<section class="wrap spk-bg" id="speakers">
+  <div class="inner">
+    <div class="rv">
+      <p class="slabel">Who's On Stage</p>
+      <h2 class="stitle">Meet the <span>Speakers</span></h2>
+      <p class="sdesc">Five builders, thinkers, and doers — each dropping a different block into the puzzle.</p>
+    </div>
+
+    <div class="spk-grid">
+      <div class="sc c1 rv" style="transition-delay:.05s">
+        <div class="sc-ico"></div>
+        <div class="sc-av">AJ</div>
+        <div class="sc-name">Alex Joaquin</div>
+        <div class="sc-role">AI Product Lead · OpenAI</div>
+        <div class="sc-topic"><strong>Building Products on LLMs</strong><br>What nobody tells you about shipping AI features at scale.</div>
+      </div>
+      <div class="sc c2 rv" style="transition-delay:.1s">
+        <div class="sc-ico"></div>
+        <div class="sc-av">MR</div>
+        <div class="sc-name">Maria Reyes</div>
+        <div class="sc-role">Founder · NexGen AI</div>
+        <div class="sc-topic"><strong>From Zero to AI Startup</strong><br>How she built a profitable AI company with a team of three.</div>
+      </div>
+      <div class="sc c3 rv" style="transition-delay:.15s">
+        <div class="sc-ico"></div>
+        <div class="sc-av">DK</div>
+        <div class="sc-name">Daniel Kim</div>
+        <div class="sc-role">ML Engineer · Google DeepMind</div>
+        <div class="sc-topic"><strong>The Prompting Iceberg</strong><br>Surface-level tips vs what actually moves the needle in production.</div>
+      </div>
+      <div class="sc c4 rv" style="transition-delay:.2s">
+        <div class="sc-ico"></div>
+        <div class="sc-av">SC</div>
+        <div class="sc-name">Sofia Cruz</div>
+        <div class="sc-role">AI Policy Researcher</div>
+        <div class="sc-topic"><strong>AI & Society: What We Miss</strong><br>The human side of the machine — ethics in everyday practice.</div>
+      </div>
+      <div class="sc c5 rv" style="transition-delay:.25s">
+        <div class="sc-ico"></div>
+        <div class="sc-av">BT</div>
+        <div class="sc-name">Ben Torres</div>
+        <div class="sc-role">Developer Advocate · Anthropic</div>
+        <div class="sc-topic"><strong>Claude API: Live in 30 min</strong><br>Blank screen to working AI app — live in front of your eyes.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SCHEDULE -->
+<section class="wrap" id="schedule">
+  <div class="inner" style="max-width:760px">
+    <div class="rv">
+      <p class="slabel">Event Day</p>
+      <h2 class="stitle">Day <span>Schedule</span></h2>
+      <p class="sdesc">Every block placed with intention. Here's how the day stacks up.</p>
+    </div>
+    <div class="sched-list">
+      <div class="srow rv"><div class="stime">8:30 AM</div><div class="sdot" style="background:var(--blue)"></div><div class="sinfo"><div class="stit">Doors Open & Registration</div><div class="sdet">Grab your badge, grab a coffee, find your seat</div></div></div>
+      <div class="srow rv"><div class="stime">9:00 AM</div><div class="sdot" style="background:var(--gold)"></div><div class="sinfo"><div class="stit">Opening — Welcome to Stack Up</div><div class="sdet">Setting the stage and the vibe for the day</div></div></div>
+      <div class="srow rv"><div class="stime">9:20 AM</div><div class="sdot" style="background:var(--blue)"></div><div class="sinfo"><div class="stit" style="color:var(--blue)">Session 1 — Alex Joaquin</div><div class="sdet">Building Products on LLMs</div></div></div>
+      <div class="srow rv"><div class="stime">10:05 AM</div><div class="sdot" style="background:var(--red)"></div><div class="sinfo"><div class="stit" style="color:var(--red)">Session 2 — Maria Reyes</div><div class="sdet">From Zero to AI Startup</div></div></div>
+      <div class="srow rv"><div class="stime">10:50 AM</div><div class="sdot" style="background:rgba(255,255,255,.15)"></div><div class="sinfo"><div class="stit">Break ☕</div><div class="sdet">15 minutes — network, stretch, refuel</div></div></div>
+      <div class="srow rv"><div class="stime">11:05 AM</div><div class="sdot" style="background:var(--gold)"></div><div class="sinfo"><div class="stit" style="color:var(--gold)">Session 3 — Daniel Kim</div><div class="sdet">The Prompting Iceberg</div></div></div>
+      <div class="srow rv"><div class="stime">11:50 AM</div><div class="sdot" style="background:rgba(255,255,255,.15)"></div><div class="sinfo"><div class="stit">Lunch Break 🍱</div><div class="sdet">45 minutes of food, talk, and connection</div></div></div>
+      <div class="srow rv"><div class="stime">12:35 PM</div><div class="sdot" style="background:var(--green)"></div><div class="sinfo"><div class="stit" style="color:var(--green)">Session 4 — Sofia Cruz</div><div class="sdet">AI & Society: What We Miss</div></div></div>
+      <div class="srow rv"><div class="stime">1:20 PM</div><div class="sdot" style="background:var(--purple)"></div><div class="sinfo"><div class="stit" style="color:var(--purple)">Session 5 — Ben Torres</div><div class="sdet">Claude API: Live in 30 Minutes (Live Demo)</div></div></div>
+      <div class="srow rv"><div class="stime">2:00 PM</div><div class="sdot" style="background:var(--gold)"></div><div class="sinfo"><div class="stit">Open Q&A — All Speakers</div><div class="sdet">Your questions. Their answers. No filter.</div></div></div>
+      <div class="srow rv"><div class="stime">2:30 PM</div><div class="sdot" style="background:var(--blue)"></div><div class="sinfo"><div class="stit">Networking & Closing 🎮</div><div class="sdet">Connect, exchange contacts, keep building</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- REGISTER -->
+<section class="wrap reg-bg" id="register">
+  <div class="reg-inner">
+    <div class="reg-blocks">
+      <div class="rb" style="width:46px;height:46px;background:#2878a8;animation-delay:0s;"></div>
+      <div class="rb" style="width:46px;height:46px;background:#b82d25;animation-delay:.12s;"></div>
+      <div class="rb" style="width:46px;height:46px;background:#c88912;animation-delay:.24s;"></div>
+      <div class="rb" style="width:46px;height:46px;background:#147a62;animation-delay:.36s;"></div>
+      <div class="rb" style="width:46px;height:46px;background:#9b5de5;animation-delay:.48s;"></div>
+    </div>
+    <h2 class="rtitle rv">Save Your <span style="color:var(--gold)">Block</span></h2>
+    <p class="rdesc rv">Spots are limited. Register now to lock in your seat — it's completely free.</p>
+    <div class="rform rv">
+      <input type="text" class="ri" id="rName" placeholder="Your full name">
+      <input type="email" class="ri" id="rEmail" placeholder="Email address">
+      <input type="text" class="ri" id="rRole" placeholder="Your role (e.g. Student, Dev, Founder)">
+      <button class="rbtn" onclick="doReg()">Stack Me In! 🎮</button>
+    </div>
+    <p id="rsuccess">🟩 You're in! We'll send details to your email. See you at Stack Up!</p>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="fblocks">
+    <div class="fb" style="background:#2878a8;"></div>
+    <div class="fb" style="background:#b82d25;"></div>
+    <div class="fb" style="background:#c88912;"></div>
+    <div class="fb" style="background:#147a62;"></div>
+    <div class="fb" style="background:#2878a8;"></div>
+    <div class="fb" style="background:#b82d25;"></div>
+    <div class="fb" style="background:#9b5de5;"></div>
+    <div class="fb" style="background:#147a62;"></div>
+  </div>
+  <div class="flogo">
+    <span style="color:var(--blue)">S</span><span style="color:var(--red)">T</span><span style="color:var(--gold)">A</span><span style="color:var(--teal)">C</span><span style="color:var(--blue)">K</span>
+    <span style="color:rgba(255,255,255,.2);margin:0 6px">|</span>
+    <span style="color:var(--red)">U</span><span style="color:var(--green)">P</span>
+  </div>
+  <p>Build the AI-Powered World Before It Builds Without You.</p>
+  <p style="margin-top:6px;"><a href="https://instagram.com/stackupbuildai" target="_blank">@stackupbuildai</a> &nbsp;·&nbsp; <a href="mailto:stackupbuildai@gmail.com">stackupbuildai@gmail.com</a></p>
+  <p style="margin-top:20px;font-size:.7rem;opacity:.4;">© 2025 Stack Up. All rights reserved.</p>
+</footer>
+
+<script>
+/* CURSOR */
+const cur = document.getElementById('cur');
+document.addEventListener('mousemove', e => {
+  cur.style.left = e.clientX+'px';
+  cur.style.top  = e.clientY+'px';
+});
+document.querySelectorAll('a,button,.sc,.srow').forEach(el => {
+  el.addEventListener('mouseenter',()=>{ cur.style.width='26px';cur.style.height='26px'; });
+  el.addEventListener('mouseleave',()=>{ cur.style.width='16px';cur.style.height='16px'; });
+});
+
+/* TETRIS BACKGROUND */
+const COLS = ['#2878a8','#b82d25','#c88912','#147a62','#9b5de5','#38b2ac'];
+const tbg  = document.getElementById('tbg');
+const numCols = Math.ceil(window.innerWidth / 44);
+
+function spawnTCol(i) {
+  const col = document.createElement('div');
+  col.className = 'tc';
+  col.style.left = (i * 44 + 2) + 'px';
+  const count = 2 + Math.floor(Math.random() * 6);
+  const color = COLS[Math.floor(Math.random() * COLS.length)];
+  const dur   = 4 + Math.random() * 5;
+  const delay = Math.random() * 5;
+  for (let j = 0; j < count; j++) {
+    const b = document.createElement('div');
+    b.className = 'tb';
+    b.style.cssText = `background:${color};animation-duration:${dur}s;animation-delay:${delay+j*.06}s;`;
+    col.appendChild(b);
+  }
+  tbg.appendChild(col);
+  setTimeout(()=>{ col.remove(); spawnTCol(i); }, (dur+delay+1)*1000+2000);
+}
+for (let i=0;i<numCols;i++) setTimeout(()=>spawnTCol(i), i*80);
+
+/* FLOOR BLOCKS */
+const FC = ['#2878a8','#b82d25','#c88912','#147a62','#2878a8','#b82d25','#147a62','#9b5de5','#2878a8','#c88912','#b82d25','#2878a8','#147a62','#9b5de5','#c88912','#2878a8'];
+['floorR1','floorR2','floorR3'].forEach((id,ri) => {
+  const row = document.getElementById(id);
+  if(!row) return;
+  const n = Math.ceil(window.innerWidth / 44) + 2;
+  for(let i=0;i<n;i++){
+    const b=document.createElement('div');
+    b.className='tfl';
+    b.style.cssText=`width:40px;background:${FC[(i+ri*3)%FC.length]};animation-duration:${1.1+Math.random()*.5}s;animation-delay:${i*.07+ri*.15}s;`;
+    row.appendChild(b);
+  }
+});
+
+/* SCROLL REVEAL */
+const obs = new IntersectionObserver(e=>{ e.forEach(e=>{ if(e.isIntersecting) e.target.classList.add('in'); }); },{threshold:.1});
+document.querySelectorAll('.rv').forEach(el=>obs.observe(el));
+
+/* SMOOTH SCROLL */
+document.querySelectorAll('a[href^="#"]').forEach(a=>{
+  a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));
+    if(t){e.preventDefault();t.scrollIntoView({behavior:'smooth',block:'start'});}
+  });
+});
+
+/* REGISTER */
+function doReg(){
+  const n=document.getElementById('rName').value.trim();
+  const e=document.getElementById('rEmail').value.trim();
+  if(!n||!e){alert('Please enter your name and email!');return;}
+  ['rName','rEmail','rRole'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('rsuccess').style.display='block';
+}
+</script>
+</body>
+</html>
